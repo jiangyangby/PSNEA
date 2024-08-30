@@ -1,10 +1,10 @@
 ![An example of entity alignment across two multi-modal knowledge graphs $\mathcal{G}$ and $\mathcal{G}'. $](misc/pic_alignment.png)
 
-An implementation for Vanilla **PSNEA: Pseudo-Siamese Network for Entity Alignment between Multi-modal Knowledge Graphs** in ACM MM 2023. 
+An implementation for Vanilla **PSNEA: Pseudo-Siamese Network for Entity Alignment between Multi-modal Knowledge Graphs** in ACM MM 2023. This repo has fixed some typos in the [original repo](https://github.com/idrfer/psn4ea).
 
 ## Environments
 
-We run this code on an Ubuntu 20.04.1 server equipped with an Intel(R) Xeon(R) Gold 5218 CPU @ 2.30GHz and 8 Nvidia(R) RTX 3090 GPUs. And the packages can be found in the file `requirements.txt`. 
+We run this code on an Ubuntu 20.04.1 server equipped with an Intel(R) Xeon(R) Gold 5218 CPU @ 2.30GHz and 8 Nvidia(R) RTX 3090 GPUs. And the packages can be found in the file `requirements.txt`.
 
 ```bash
 pip install -r requirements.txt
@@ -14,8 +14,8 @@ pip install -r requirements.txt
 
 The performance of PSNEA is validated on DBP and DWY datasets:
 
-+ *Bilingual dataset*: DBP15k is one of the most general datasets consisting of three cross-lingual subsets `EN-FR`, `EN-ZH`, and `EN-JA`. The multi-modal version of DBP dataset come from [[&#x1F4E5;Download]](https://github.com/cambridgeltl/eva) repository. 
-+ *Cross Knowledge Graphs dataset*: DWY100k is a dataset including two subsections `DBP-YG` and `DBP-WD` [[&#x1F4E5;Download]](https://github.com/nju-websoft/BootEA). 
++ *Bilingual dataset*: DBP15k is one of the most general datasets consisting of three cross-lingual subsets `EN-FR`, `EN-ZH`, and `EN-JA`. The multi-modal version of DBP dataset come from [[&#x1F4E5;Download]](https://github.com/cambridgeltl/eva) repository.
++ *Cross Knowledge Graphs dataset*: DWY100k is a dataset including two subsections `DBP-YG` and `DBP-WD` [[&#x1F4E5;Download]](https://github.com/nju-websoft/BootEA).
 
 The details of the datasets are listed as:
 
@@ -29,9 +29,9 @@ The details of the datasets are listed as:
 
 ## Bash Scripts
 
-This repository can reproduce the results via the bash script provided in `bash_scripts/`. Considering that different datasets have different characteristics and therefore preferences for hyper-parameters configuration, we provide multiple `run.sh` files. 
+This repository can reproduce the results via the bash script provided in `bash_scripts/`. Considering that different datasets have different characteristics and therefore preferences for hyper-parameters configuration, we provide multiple `run.sh` files.
 
-Here is one example of training PSNEA on DBP dataset: 
+Here is one example of training PSNEA on DBP dataset:
 
 ```bash
 bash bash_scripts/run_dbp.sh
@@ -41,6 +41,6 @@ In this way, a **minimal scale model** will be trained to test the integrity of 
 
 ## Contact Us
 
-You can contact us by [[&#x2709; e-Mail]](idrfer@foxmail.com)
+You can contact us by [[e-Mail]](idrfer@foxmail.com)
 
 
