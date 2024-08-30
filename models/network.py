@@ -42,16 +42,16 @@ class GAT(nn.Module):
         if not self.diag:
             x = x.mean(dim=0)
         return x
-    
+
 class GCN(nn.Module):
     def __init__(self, n_units, dropout):
         super(GCN, self).__init__()
         self.nfeat = n_units[0]
         self.nhid  = n_units[1]
         self.nout  = n_units[2]
-        
+
         self.gc1 = GraphConvolution(self.nfeat, self.nhid)
-        self.gc2 = GraphConvolution(self.nhid,  selfnout)
+        self.gc2 = GraphConvolution(self.nhid,  self.nout)
         self.dropout = dropout
 
     def forward(self, x, adj):
@@ -66,7 +66,7 @@ def cosine_sim(im, s):
 def l2norm(X):
     norm = torch.pow(X, 2).sum(dim=1, keepdim=True).sqrt()
     a = norm.expand_as(X) + 1e-8
-    X = torch.div(X, a)    
+    X = torch.div(X, a)
     return X
 
 class NCA_loss(nn.Module):
@@ -79,24 +79,24 @@ class NCA_loss(nn.Module):
         self.sim = cosine_sim
 
     def forward(self, emb, train_links, test_links, device=0):
-        
+
         emb = F.normalize(emb)
 
         im = emb[train_links[:, 0]]
         s = emb[train_links[:,1]]
-    
-        
+
+
         if len(test_links) != 0:
             test_links = test_links[random.sample([x for x in np.arange(0,len(test_links))],4500)]
 
             im_neg_scores = self.sim(im, emb[test_links[:,1]])
             s_neg_scores = self.sim(s, emb[test_links[:,0]])
-        
+
         bsize = im.size()[0]
         scores = self.sim(im, s) #+ 1
         tmp  = torch.eye(bsize).cuda(device)
         s_diag = tmp * scores
-        
+
         alpha = self.alpha
         alpha_2 = alpha
         beta = self.beta
@@ -112,18 +112,18 @@ class NCA_loss(nn.Module):
 
         loss = torch.sum(
                 torch.log(1 + S_.sum(0)) / alpha
-                + torch.log(1 + S_.sum(1)) / alpha 
+                + torch.log(1 + S_.sum(1)) / alpha
                 + loss_diag * beta \
                 ) / bsize
         if len(test_links) != 0:
             loss_global_neg = (torch.sum(torch.log(1 + S_1.sum(0)) / alpha_2
-                + torch.log(1 + S_2.sum(0)) / alpha_2) 
+                + torch.log(1 + S_2.sum(0)) / alpha_2)
                 + torch.sum(torch.log(1 + S_1.sum(1)) / alpha_2
-                + torch.log(1 + S_2.sum(1)) / alpha_2)) / 4500 
+                + torch.log(1 + S_2.sum(1)) / alpha_2)) / 4500
         if len(test_links) != 0:
             return loss + loss_global_neg
         return loss
-    
+
 class NCA_loss_cross_modal(nn.Module):
 
     def __init__(self, alpha, beta, ep):
@@ -134,7 +134,7 @@ class NCA_loss_cross_modal(nn.Module):
         self.sim = cosine_sim
 
     def forward(self, emb1, emb2, train_links, device=0):
-        
+
         emb1 = F.normalize(emb1)
         emb2 = F.normalize(emb2)
 
@@ -145,7 +145,7 @@ class NCA_loss_cross_modal(nn.Module):
         scores = self.sim(im, s)
         tmp  = torch.eye(bsize).cuda(device)
         s_diag = tmp * scores
-        
+
         alpha = self.alpha
         alpha_2 = alpha
         beta = self.beta
@@ -157,7 +157,7 @@ class NCA_loss_cross_modal(nn.Module):
 
         loss = torch.sum(
                 torch.log(1 + S_.sum(0)) / alpha
-                + torch.log(1 + S_.sum(1)) / alpha 
+                + torch.log(1 + S_.sum(1)) / alpha
                 + loss_diag * beta \
                 ) / bsize
         return loss
@@ -210,7 +210,7 @@ class Norm(nn.Module):
         self.eps   = eps
         self.alpha = nn.Parameter(torch.ones(self.size))
         self.bias  = nn.Parameter(torch.zeros(self.size))
-        
+
     def forward(self, x):
         norm = self.alpha * (x - x.mean(dim=-1, keepdim=True)) \
         / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias
@@ -218,7 +218,7 @@ class Norm(nn.Module):
 
 class FeedForward(nn.Module):
     def __init__(self, d_model, d_ff=2048, dropout = 0.1):
-        super().__init__() 
+        super().__init__()
         self.linear_1 = nn.Linear(d_model, d_ff)
         self.dropout = nn.Dropout(dropout)
         self.linear_2 = nn.Linear(d_ff, d_model)
@@ -233,15 +233,15 @@ class MultiHeadAttention(nn.Module):
         self.d_model = d_model
         self.d_k = d_model // heads
         self.h = heads
-        
+
         self.q_linear = nn.Linear(d_model, d_model)
         self.v_linear = nn.Linear(d_model, d_model)
         self.k_linear = nn.Linear(d_model, d_model)
         self.dropout = nn.Dropout(dropout)
         self.out = nn.Linear(d_model, d_model)
-    
+
     def forward(self, q, k, v, mask=None):
-        
+
         bs = q.size(0)
 
         k = self.k_linear(k).view(bs, -1, self.h, self.d_k)
@@ -256,7 +256,7 @@ class MultiHeadAttention(nn.Module):
         concat = scores.transpose(1,2).contiguous().view(bs, -1, self.d_model)
         output = concat
         output = self.out(concat)
-    
+
         return output
 
 class ucl_loss(nn.Module):
@@ -266,7 +266,7 @@ class ucl_loss(nn.Module):
         self.tau = tau
         self.device = device
         self.sim = cosine_sim
-        self.weight = ab_weight 
+        self.weight = ab_weight
         self.n_view = n_view
         self.intra_weight = intra_weight
         self.inversion = inversion
@@ -323,7 +323,7 @@ class ucl_loss(nn.Module):
         loss_b = self.softXEnt(labels, logits_b)
 
         return alpha * loss_a + (1 - alpha) * loss_b
-    
+
 class dcl_loss(nn.Module):
 
     def __init__(self, device, tau=0.05, ab_weight=0.5, zoom=0.1, n_view=2, inversion=False, reduction="mean", detach=False):

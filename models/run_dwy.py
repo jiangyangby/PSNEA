@@ -44,8 +44,8 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=0, help="weight decay (L2 loss for parameters)")
     parser.add_argument("--check_point", type=int, default=100, help="interval between different check points")
     parser.add_argument("--tau", type=float, default=0.1, help="the temperature factor of contrastive loss")
-    parser.add_argument("--hidden_units", type=str, default="200,200,100", help="hidden units in each hidden layer")    
-    
+    parser.add_argument("--hidden_units", type=str, default="200,200,100", help="hidden units in each hidden layer")
+
 
     args = parser.parse_args()
     device              = run_args(args)
@@ -88,7 +88,7 @@ def main():
         train_ill = np.array(visual_links, dtype=np.int32)
     else:
         train_ill = np.array(ills[:int(len(ills) // 1 * args.rate)], dtype=np.int32)
-    
+
     test_ill_ = ills[int(len(ills)// 1 * args.rate):]
     test_ill  = np.array(test_ill_, dtype=np.int32)
 
@@ -125,10 +125,10 @@ def main():
     params = [
             {"params":
             list(sm_model.parameters())+
-            list(img_fc.parameters()) + 
-            list(rel_fc.parameters()) + 
+            list(img_fc.parameters()) +
+            list(rel_fc.parameters()) +
             list(att_fc.parameters()) +
-            [entity_emb.weight] + 
+            [entity_emb.weight] +
             [weight_raw]
         }]
     optimizer = optim.AdamW(
@@ -144,7 +144,7 @@ def main():
     criterion_ucl = get_ucl(device, args.tau, args.Lambda, 2)
     criterion_dcl = get_dcl(device, args.tau, args.Lambda)
 
-    run(args, optimizer, param, sm_model, [img_fc, rel_fc, att_fc] entity_emb, input_index, adj, [img_features, rel_features, att_features], train_ill, weight_raw, [criterions_ucl, criterion_dcl], [non_train1, non_train2], test1, test2)
+    run(args, optimizer, param, sm_model, [img_fc, rel_fc, att_fc], entity_emb, input_idx, adj, [img_features, rel_features, att_features], train_ill, weight_raw, [criterion_ucl, criterion_dcl], [non_train1, non_train2], test1, test2)
 
     pass
 

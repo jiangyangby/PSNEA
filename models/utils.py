@@ -1,4 +1,4 @@
-import os 
+import os
 import gc
 import time
 import math
@@ -90,7 +90,7 @@ def read_raw_data(file_dir, l=[1,2]):
                     params = line.strip("\n").split("\t")
                     tups.append(tuple([int(x) for x in params]))
         return tups
-    
+
     def read_dict(file_paths):
         ids         = {}
         ent2id_dict = {}
@@ -103,7 +103,7 @@ def read_raw_data(file_dir, l=[1,2]):
                     id.add(int(params[0]))
             ids.append(id)
         return ent2id_dict, ids
-    
+
     print("load raw data from ", file_dir)
     ent2id_dict, ids = read_dict([file_dir + "/ent_ids_" + str(i) for i in l])
     ills             = read_file([file_dir + "/ill_ent_ids"])
@@ -170,6 +170,74 @@ def get_ucl(device, tau, Lambda, n_view):
 
 def get_dcl(device, tau, Lambda):
     return dcl_loss(device, tau, Lambda, 0.1, 2, False, "sum", False)
+
+def div_list(ls, n):
+    ls_len = len(ls)
+    if n <= 0 or 0 == ls_len:
+        return []
+    if n > ls_len:
+        return []
+    elif n == ls_len:
+        return [[i] for i in ls]
+    else:
+        j = ls_len // n
+        k = ls_len % n
+        ls_return = []
+        for i in range(0, (n - 1) * j, j):
+            ls_return.append(ls[i:i + j])
+        ls_return.append(ls[(n - 1) * j:])
+        return ls_return
+
+def multi_cal_rank(task, sim, top_k, l_or_r):
+    mean = 0
+    mrr = 0
+    num = [0 for k in top_k]
+    for i in range(len(task)):
+        ref = task[i]
+        if l_or_r == 0:
+            rank = (sim[i, :]).argsort()
+        else:
+            rank = (sim[:, i]).argsort()
+        assert ref in rank
+        rank_index = np.where(rank == ref)[0][0]
+        mean += (rank_index + 1)
+        mrr += 1.0 / (rank_index + 1)
+        for j in range(len(top_k)):
+            if rank_index < top_k[j]:
+                num[j] += 1
+    return mean, num, mrr
+
+def multi_get_hits(Lvec, Rvec, top_k=(1, 5, 10, 50, 100)):
+    result = []
+    sim = pairwise_distances(torch.FloatTensor(Lvec), torch.FloatTensor(Rvec)).numpy()
+    for i in [0, 1]:
+        top_total = np.array([0] * len(top_k))
+        mean_total, mrr_total = 0.0, 0.0
+        s_len = Lvec.shape[0] if i == 0 else Rvec.shape[0]
+        tasks = div_list(np.array(range(s_len)), 10)
+        pool = multiprocessing.Pool(processes=len(tasks))
+        reses = list()
+        for task in tasks:
+            if i == 0:
+                reses.append(pool.apply_async(multi_cal_rank, (task, sim[task, :], top_k, i)))
+            else:
+                reses.append(pool.apply_async(multi_cal_rank, (task, sim[:, task], top_k, i)))
+        pool.close()
+        pool.join()
+        for res in reses:
+            mean, num, mrr = res.get()
+            mean_total += mean
+            mrr_total += mrr
+            top_total += np.array(num)
+        acc_total = top_total / s_len
+        for i in range(len(acc_total)):
+            acc_total[i] = round(acc_total[i], 4)
+        mean_total /= s_len
+        mrr_total /= s_len
+        result.append(acc_total)
+        result.append(mean_total)
+        result.append(mrr_total)
+    return result
 
 def run(args, optimizer, params, sm_model, fcs, entity_emb, input_index, adj, featuress, train_ill, weight_raw, criterions, non_trains, test1, test2):
     new_links  = []
@@ -260,27 +328,27 @@ def run(args, optimizer, params, sm_model, fcs, entity_emb, input_index, adj, fe
             EMB = F.normalize(EMB)
             top_k = [1, 10, 50]
             if "100" in args.file_dir:
-                Lvec = final_emb[test1].cpu().data.numpy()
-                Rvec = final_emb[test2].cpu().data.numpy()
+                Lvec = EMB[test1].cpu().data.numpy()
+                Rvec = EMB[test2].cpu().data.numpy()
                 acc_l2r, mean_l2r, mrr_l2r, acc_r2l, mean_r2l, mrr_r2l = multi_get_hits(Lvec, Rvec, top_k=top_k, args=args)
-                del final_emb
+                del EMB
                 gc.collect()
             else:
                 acc_l2r = np.zeros((len(top_k)), dtype=np.float32)
                 acc_r2l = np.zeros((len(top_k)), dtype=np.float32)
                 _, _, mean_l2r, mean_r2l, mrr_l2r, mrr_r2l = 0, 0., 0., 0., 0., 0.
                 if args.dist == 2:
-                    distance = pairwise_distances(final_emb[test1], final_emb[test2])
+                    distance = pairwise_distances(EMB[test1], EMB[test2])
                 elif args.dist == 1:
                     distance = torch.FloatTensor(scipy.spatial.distance.cdist(\
-                        final_emb[test1].cpu().data.numpy(),\
-                        final_emb[test2].cpu().data.numpy(), metric="cityblock"))
+                        EMB[test1].cpu().data.numpy(),\
+                        EMB[test2].cpu().data.numpy(), metric="cityblock"))
                 else:
                     raise NotImplementedError
-                    
+
                 if args.csls is True:
                     distance = 1 - csls_sim(1 - distance, args.csls_k)
-                    
+
                 if epoch+1 == args.epochs:
                     to_write = []
                     test_left_np = test1.cpu().numpy()
@@ -318,7 +386,7 @@ def run(args, optimizer, params, sm_model, fcs, entity_emb, input_index, adj, fe
                 for i in range(len(top_k)):
                     acc_l2r[i] = round(acc_l2r[i] / test1.size(0), 4)
                     acc_r2l[i] = round(acc_r2l[i] / test2.size(0), 4)
-                del distance, gph_emb, img_emb, rel_emb, att_emb
+                del distance
                 gc.collect()
 
 if __name__ == '__main__':
